@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strconv"
+	"strings"
+	"encoding/base64"
+	"os"
 )
 
 	
@@ -19,6 +22,39 @@ type Book struct {
 
 // Todo : Implement DB
 var books []Book
+
+func getToken(w http.ResponseWriter, r *http.Request){
+	w.Header().Set("Content-Type" , "application/json")
+	authHeader:= r.Header.Get("Authorization")
+	authString := strings.Split(authHeader," ")
+	if len(authString) < 2 || authString[0] != "Basic" {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Invalid authorization header"}`))
+		return
+	}
+	decodedString, err := base64.StdEncoding.DecodeString(authString[1])
+	if err != nil{
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Failed to decode authrization header"}`))
+		return
+	}
+	finalString := string(decodedString)
+	userString := strings.Split(finalString,":")
+	if len(userString) < 2 {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Invalid authorization header"}`))
+		return
+	}
+	username := userString[0]
+	password := userString[1]
+
+	if username!=os.Getenv("USERNAME") || password!=os.Getenv("PASSWORD") {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Wrong username or password"}`))
+		return
+	}
+	w.Write([]byte(`{"success":"true"}`))
+}
 
 func getBooks(w http.ResponseWriter, r *http.Request){
 	w.Header().Set("Content-Type" , "application/json")
@@ -118,6 +154,7 @@ func deleteBook(w http.ResponseWriter, r *http.Request){
 
 func main() {
 	router := mux.NewRouter()
+	router.HandleFunc("/api/authenticate",getToken).Methods("POST")
 	router.HandleFunc("/api/books",getBooks).Methods("GET")
 	router.HandleFunc("/api/books",createBook).Methods("POST")
 	router.HandleFunc("/api/books/{id}",getBook).Methods("GET")
