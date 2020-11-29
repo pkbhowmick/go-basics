@@ -22,16 +22,31 @@ var books []Book
 
 func getBooks(w http.ResponseWriter, r *http.Request){
 	w.Header().Set("Content-Type" , "application/json")
-	json.NewEncoder(w).Encode(books)
+	err := json.NewEncoder(w).Encode(books)
+	if err!=nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Error in encoding json object"}`))
+		return
+	}
 }
 
 func createBook(w http.ResponseWriter, r *http.Request){
 	w.Header().Set("Content-Type" , "application/json")
 	var book Book
-	json.NewDecoder(r.Body).Decode(&book)
+	err := json.NewDecoder(r.Body).Decode(&book)
+	if err!=nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Error in decoding json object"}`))
+		return
+	}
 	book.ID = strconv.Itoa(rand.Intn(100000))
 	books = append(books, book)
-	json.NewEncoder(w).Encode(book)
+	err = json.NewEncoder(w).Encode(book)
+	if err!=nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Error in encoding json object"}`))
+		return
+	}
 }
 
 func getBook(w http.ResponseWriter, r *http.Request){
@@ -41,7 +56,11 @@ func getBook(w http.ResponseWriter, r *http.Request){
 	for index, item := range books {
 		if param["id"] == item.ID {
 			book = books[index]
-			json.NewEncoder(w).Encode(book)
+			err := json.NewEncoder(w).Encode(book)
+			if err!=nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"message":"Error in encoding json object"}`))
+			}
 			return
 		}
 	}
@@ -53,13 +72,22 @@ func updateBook(w http.ResponseWriter, r *http.Request){
 	w.Header().Set("Content-Type" , "application/json")
 	param := mux.Vars(r)
 	var newBook Book
-	json.NewDecoder(r.Body).Decode(&newBook)
+	err := json.NewDecoder(r.Body).Decode(&newBook)
+	if err!=nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Error in decoding json object"}`))
+		return
+	}
 	for index, item := range books {
 		if param["id"] == item.ID {
 			newBook.ID = item.ID
 			books = append(books[:index],books[index+1:]...)
 			books = append(books,newBook)
-			json.NewEncoder(w).Encode(newBook)
+			err := json.NewEncoder(w).Encode(newBook)
+			if err!=nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"message":"Error in encoding json object"}`))
+			}
 			return
 		}
 	}
@@ -75,7 +103,11 @@ func deleteBook(w http.ResponseWriter, r *http.Request){
 		if param["id"] == item.ID {
 			book = books[index]
 			books = append(books[:index],books[index+1:]...)
-			json.NewEncoder(w).Encode(book)
+			err := json.NewEncoder(w).Encode(book)
+			if err!= nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"message":"Error in encoding json object"}`))
+			}
 			return
 		}
 	}
