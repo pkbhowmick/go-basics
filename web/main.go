@@ -10,6 +10,8 @@ import (
 	"strings"
 	"encoding/base64"
 	"os"
+	"github.com/dgrijalva/jwt-go"
+	"time"
 )
 
 	
@@ -19,6 +21,8 @@ type Book struct {
 	Author string `json:"author"`
 	ISBN   string `json:"ISBN"`
 }
+
+var SIGNATURE_KEY = []byte(os.Getenv("SIGNATURE_KEY"))
 
 // Todo : Implement DB
 var books []Book
@@ -48,12 +52,22 @@ func getToken(w http.ResponseWriter, r *http.Request){
 	username := userString[0]
 	password := userString[1]
 
-	if username!=os.Getenv("USERNAME") || password!=os.Getenv("PASSWORD") {
+	if username!=os.Getenv("ADMIN_USER") || password!=os.Getenv("ADMIN_PASS") {
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte(`{"message":"Wrong username or password"}`))
 		return
 	}
-	w.Write([]byte(`{"success":"true"}`))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username": username,
+		"createdAt": time.Now(),
+	})
+	tokenString, err := token.SignedString(SIGNATURE_KEY)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"Failed to generate token"}`))
+		return
+	}
+	w.Write([]byte(`{"token": `+tokenString+`}`))
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request){
