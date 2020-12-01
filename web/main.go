@@ -12,6 +12,7 @@ import (
 	"os"
 	"github.com/dgrijalva/jwt-go"
 	"time"
+	"fmt"
 )
 
 	
@@ -70,6 +71,33 @@ func getToken(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte(`{"token": `+tokenString+`}`))
 }
 
+func checkToken(authHeader string) bool {
+	if authHeader == "" {
+		return false
+	}
+	authString := strings.Split(authHeader," ")
+	if len(authString) < 2 || authString[0] != "Bearer" {
+		return false
+	}
+	tokenString := authString[1]
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+	
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return SIGNATURE_KEY, nil
+	})
+	if err != nil{
+		return false
+	}else if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return true
+	} else {
+		return false
+	}
+}
+
 func getBooks(w http.ResponseWriter, r *http.Request){
 	w.Header().Set("Content-Type" , "application/json")
 	err := json.NewEncoder(w).Encode(books)
@@ -81,6 +109,13 @@ func getBooks(w http.ResponseWriter, r *http.Request){
 }
 
 func createBook(w http.ResponseWriter, r *http.Request){
+	authHeader := r.Header.Get("Authorization")
+	isValidToken := checkToken(authHeader)
+	if isValidToken == false {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Access token is invalid or missing"}`))
+		return
+	}
 	w.Header().Set("Content-Type" , "application/json")
 	var book Book
 	err := json.NewDecoder(r.Body).Decode(&book)
@@ -119,6 +154,13 @@ func getBook(w http.ResponseWriter, r *http.Request){
 }
 
 func updateBook(w http.ResponseWriter, r *http.Request){
+	authHeader := r.Header.Get("Authorization")
+	isValidToken := checkToken(authHeader)
+	if isValidToken == false {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Access token is invalid or missing"}`))
+		return
+	}
 	w.Header().Set("Content-Type" , "application/json")
 	param := mux.Vars(r)
 	var newBook Book
@@ -146,6 +188,13 @@ func updateBook(w http.ResponseWriter, r *http.Request){
 }
 
 func deleteBook(w http.ResponseWriter, r *http.Request){
+	authHeader := r.Header.Get("Authorization")
+	isValidToken := checkToken(authHeader)
+	if isValidToken == false {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"message":"Access token is invalid or missing"}`))
+		return
+	}
 	w.Header().Set("Content-Type" , "application/json")
 	param := mux.Vars(r)
 	var book Book
